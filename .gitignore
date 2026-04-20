@@ -1,0 +1,5 @@
+*.log
+problem.txt
+response.txt
+bitrix_alerts.env
+.env
