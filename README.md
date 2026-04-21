@@ -2,6 +2,12 @@
 
 **English** · [Русский](README.ru.md)
 
+<p align="center">
+  <img src="assets/logos/zabbix.svg" alt="Zabbix" height="56" />
+  <br />
+  <img src="assets/logos/bitrix24-ru.svg" alt="Bitrix24" height="56" />
+</p>
+
 Bash script to send Zabbix alert notifications to a Bitrix24 chat **as a chat bot**, using REST `imbot.v2.Bot.register` + `imbot.v2.Chat.Message.send` via an incoming webhook (`imbot` scope).
 
 ## Requirements
@@ -17,8 +23,8 @@ Bash script to send Zabbix alert notifications to a Bitrix24 chat **as a chat bo
 1. In Bitrix24 open **Developer resources** → **Other** → **Incoming webhooks**.
 2. Create a webhook, enable the `imbot` scope, select methods `imbot.v2.Bot.register` and `imbot.v2.Chat.Message.send`, then save.
 3. Copy the webhook URL into `BITRIX_WEBHOOK_URL`. Both are supported:
-   - REST base: `https://your-portal.bitrix24.com/rest/<userId>/<token>/`;
-   - legacy URL ending with `/im.message.add.json` — the script strips that suffix.
+  - REST base: `https://your-portal.bitrix24.com/rest/<userId>/<token>/`;
+  - legacy URL ending with `/im.message.add.json` — the script strips that suffix.
 
 ## Chat bot registration
 
@@ -26,8 +32,8 @@ Bash script to send Zabbix alert notifications to a Bitrix24 chat **as a chat bo
 - **Add the bot to the target group chat** as a member — otherwise sending to `chat…` will fail with access denied. For a private DM, set `BITRIX_DIALOG_ID` to the **numeric user ID only** (no `chat` prefix).
 - The first alert run will call `imbot.v2.Bot.register` (idempotent by `code`), store the numeric `bot_id` in `BITRIX_BOT_ID_CACHE` (default `/var/lib/zabbix/bitrix_bot_id`), then send the message.
 - Register only (refresh cache, no message): run  
-  `bitrix_alerts.sh --register`  
-  as a user that can write the cache file.
+`bitrix_alerts.sh --register`  
+as a user that can write the cache file.
 - Do not change `BITRIX_BOT_TOKEN` after registration unless you update the bot token in Bitrix24 accordingly; otherwise `imbot.v2.Chat.Message.send` will stop authorizing.
 
 ## How to find `BITRIX_DIALOG_ID` (chat)
@@ -37,30 +43,42 @@ Bash script to send Zabbix alert notifications to a Bitrix24 chat **as a chat bo
 
 ## Install (Linux, Zabbix server)
 
+### Quick install (interactive)
+
+On the Zabbix server as **root** (dependencies, script, `logrotate`, prompts, generated `BITRIX_BOT_TOKEN`, `/etc/zabbix/bitrix_alerts.env`):
+
+```bash
+curl -fsSL https://raw.githubusercontent.com/fgbm/zabbix_alert_bitrix24/main/install.sh | sudo bash
+```
+
+The installer reads answers from `**/dev/tty**`, so prompts work when stdin is a pipe. If `/dev/tty` is unavailable, download `install.sh` and run: `sudo bash install.sh`.
+
+Set `**ZABBIX_BITRIX_INSTALL_RAW_BASE**` to use a different raw URL prefix (fork/branch).
+
+### Log rotation (logrotate)
+
+`bitrix_problem.log` and `bitrix_response.log` under `**LOG_DIR**` (default `/var/log/zabbix/`) are covered by `**/etc/logrotate.d/zabbix-bitrix**` after quick install: **weekly**, keep **12** rotations, `compress` + `delaycompress`, `copytruncate`, `create` as the Zabbix user. System **logrotate** (cron / `logrotate.timer` on systemd) runs rotations automatically.
+
+### Manual install
+
 1. Copy `bitrix_alerts.sh` to the Zabbix alert scripts directory, for example:
-
-   ```bash
+  ```bash
    sudo install -o zabbix -g zabbix -m 0750 bitrix_alerts.sh /usr/lib/zabbix/alertscripts/bitrix_alerts.sh
-   ```
-
+  ```
 2. Create the cache directory and grant ownership to `zabbix` if you use the default path:
-
-   ```bash
+  ```bash
    sudo mkdir -p /var/lib/zabbix
    sudo chown zabbix:zabbix /var/lib/zabbix
-   ```
-
+  ```
 3. Create the configuration file from the example:
-
-   ```bash
+  ```bash
    sudo cp bitrix_alerts.env.example /etc/zabbix/bitrix_alerts.env
    sudo chmod 600 /etc/zabbix/bitrix_alerts.env
    sudo chown root:zabbix /etc/zabbix/bitrix_alerts.env
-   ```
-
+  ```
    Edit `/etc/zabbix/bitrix_alerts.env` and set `BITRIX_WEBHOOK_URL`, `BITRIX_DIALOG_ID`, `BITRIX_BOT_CODE`, `BITRIX_BOT_TOKEN`, and optionally bot name/position.
-
 4. Ensure the Zabbix user can write to `LOG_DIR` (default `/var/log/zabbix`), or set `LOG_DIR` to a writable directory in the env file.
+5. (Optional) Log rotation: copy [logrotate/zabbix-bitrix](logrotate/zabbix-bitrix) to `/etc/logrotate.d/zabbix-bitrix` and replace `/var/log/zabbix` with your `LOG_DIR` if needed.
 
 ## Zabbix media type
 
