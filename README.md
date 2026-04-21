@@ -3,9 +3,9 @@
 **English** · [Русский](README.ru.md)
 
 <p align="center">
-  <img src="assets/logos/zabbix.svg" alt="Zabbix" height="56" />
+  <img src="assets/logos/zabbix.png" alt="Zabbix" height="56" />
   <br />
-  <img src="assets/logos/bitrix24-ru.svg" alt="Bitrix24" height="56" />
+  <img src="assets/logos/bitrix24-ru.png" alt="Bitrix24" height="56" />
 </p>
 
 Bash script to send Zabbix alert notifications to a Bitrix24 chat **as a chat bot**, using REST `imbot.v2.Bot.register` + `imbot.v2.Chat.Message.send` via an incoming webhook (`imbot` scope).
