@@ -6,13 +6,25 @@ zabbix_export:
       type: SCRIPT
       script_name: bitrix_alerts.sh
       parameters:
+        - '{ALERT.SENDTO}'
         - '{ALERT.SUBJECT}'
         - '{ALERT.MESSAGE}'
+        - '{EVENT.SOURCE}'
+        - '{EVENT.VALUE}'
+        - '{EVENT.SEVERITY}'
       max_sessions: '1'
       attempts: '3'
       attempt_interval: 10s
       description: |
-        Bitrix24 chat-bot media type.
+        Bitrix24 chat-bot media type (recommended).
         Calls bitrix_alerts.sh from Zabbix alertscripts directory.
-        Configure /etc/zabbix/bitrix_alerts.env before use.
+
+        Routing: set per-user media "Send to" to the Bitrix dialog_id (e.g. chat123 or numeric user id for DM).
+        If Send to is empty, BITRIX_DIALOG_ID from /etc/zabbix/bitrix_alerts.env is used (default route).
+
+        Legacy: older setups used only {ALERT.SUBJECT} and {ALERT.MESSAGE}; bitrix_alerts.sh still accepts 2 args.
+
+        Optional env: BITRIX_APPEND_EVENT_METADATA=1 to append EVENT.* footer to the chat message;
+        BITRIX_STRICT_DIALOG_ID=1 to validate dialog_id shape; BITRIX_MESSAGE_MAX_LEN, BITRIX_CURL_*.
+
         See: https://github.com/fgbm/zabbix_alert_bitrix24

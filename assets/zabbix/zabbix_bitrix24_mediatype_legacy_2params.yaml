@@ -1,0 +1,20 @@
+# Legacy Zabbix Script media type (2 parameters only).
+# bitrix_alerts.sh still supports this invocation; dialog_id must be set via BITRIX_DIALOG_ID in env.
+# Prefer importing zabbix_bitrix24_mediatype.yaml for per-user routing via {ALERT.SENDTO}.
+
+zabbix_export:
+  version: '6.0'
+  date: '2026-04-21T00:00:00Z'
+  media_types:
+    - name: Bitrix24 (chat bot) legacy 2 params
+      type: SCRIPT
+      script_name: bitrix_alerts.sh
+      parameters:
+        - '{ALERT.SUBJECT}'
+        - '{ALERT.MESSAGE}'
+      max_sessions: '1'
+      attempts: '3'
+      attempt_interval: 10s
+      description: |
+        Legacy 2-parameter media type. Requires BITRIX_DIALOG_ID in /etc/zabbix/bitrix_alerts.env.
+        See zabbix_bitrix24_mediatype.yaml for the recommended 6-parameter variant with {ALERT.SENDTO}.

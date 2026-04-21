@@ -8,7 +8,7 @@
   <img src="assets/logos/bitrix24-ru.png" alt="Bitrix24" height="56" />
 </p>
 
-Bash script to send Zabbix alert notifications to a Bitrix24 chat **as a chat bot**, using REST `imbot.v2.Bot.register` + `imbot.v2.Chat.Message.send` via an incoming webhook (`imbot` scope).
+Bash script to send Zabbix alert notifications to a Bitrix24 chat **as a chat bot**, using REST `imbot.v2.Bot.register` + `imbot.v2.Chat.Message.send` via an incoming webhook (`imbot` scope). Supports **per-user routing** via Zabbix `{ALERT.SENDTO}` (recommended) or a default `BITRIX_DIALOG_ID` in env; a legacy **two-argument** Script media type is still supported.
 
 ## Requirements
 
@@ -29,7 +29,7 @@ Bash script to send Zabbix alert notifications to a Bitrix24 chat **as a chat bo
 ## Chat bot registration
 
 - In env set a unique `BITRIX_BOT_CODE` (for this webhook app), a strong `BITRIX_BOT_TOKEN` (e.g. `openssl rand -hex 32`), and optionally `BITRIX_BOT_NAME` / `BITRIX_BOT_WORK_POSITION`.
-- **Add the bot to the target group chat** as a member — otherwise sending to `chat…` will fail with access denied. For a private DM, set `BITRIX_DIALOG_ID` to the **numeric user ID only** (no `chat` prefix).
+- **Add the bot to the target group chat** as a member — otherwise sending to `chat…` will fail with access denied. For a private DM, set **Send to** (or `BITRIX_DIALOG_ID`) to the **numeric user ID only** (no `chat` prefix).
 - The first alert run will call `imbot.v2.Bot.register` (idempotent by `code`), store the numeric `bot_id` in `BITRIX_BOT_ID_CACHE` (default `/var/lib/zabbix/bitrix_bot_id`), then send the message.
 - Register only (refresh cache, no message): run  
 `bitrix_alerts.sh --register`  
@@ -76,13 +76,19 @@ Set `**ZABBIX_BITRIX_INSTALL_RAW_BASE**` to use a different raw URL prefix (fork
    sudo chmod 600 /etc/zabbix/bitrix_alerts.env
    sudo chown root:zabbix /etc/zabbix/bitrix_alerts.env
   ```
-   Edit `/etc/zabbix/bitrix_alerts.env` and set `BITRIX_WEBHOOK_URL`, `BITRIX_DIALOG_ID`, `BITRIX_BOT_CODE`, `BITRIX_BOT_TOKEN`, and optionally bot name/position.
+   Edit `/etc/zabbix/bitrix_alerts.env` and set `BITRIX_WEBHOOK_URL`, `BITRIX_BOT_CODE`, `BITRIX_BOT_TOKEN`, and optionally bot name/position. Set `BITRIX_DIALOG_ID` as a **default** dialog when you do not use per-user **Send to** routing (see *Zabbix media type* below).
 4. Ensure the Zabbix user can write to `LOG_DIR` (default `/var/log/zabbix`), or set `LOG_DIR` to a writable directory in the env file.
 5. (Optional) Log rotation: copy [logrotate/zabbix-bitrix](logrotate/zabbix-bitrix) to `/etc/logrotate.d/zabbix-bitrix` and replace `/var/log/zabbix` with your `LOG_DIR` if needed.
 
 ## Zabbix media type
 
 In Zabbix you don't add the script directly — you add a **media type** of kind **Script** that invokes `bitrix_alerts.sh` from the `alertscripts` directory.
+
+### Routing (dialog / chat)
+
+- **Recommended:** per Zabbix user media, set **Send to** to the Bitrix `dialog_id` (e.g. `chat123` for a group chat, or a **numeric** user id for a private DM — no `chat` prefix). The bundled YAML passes `{ALERT.SENDTO}` as the first script argument; the script uses it as `dialog_id` when non-empty after trim.
+- **Fallback:** if **Send to** is empty, the script uses `BITRIX_DIALOG_ID` from `/etc/zabbix/bitrix_alerts.env` (one default chat for all users on that media entry).
+- **Legacy:** older setups used only `{ALERT.SUBJECT}` and `{ALERT.MESSAGE}` (two parameters). That still works: `dialog_id` must come **only** from `BITRIX_DIALOG_ID` in env. Import [assets/zabbix/zabbix_bitrix24_mediatype_legacy_2params.yaml](assets/zabbix/zabbix_bitrix24_mediatype_legacy_2params.yaml) if you want the old parameter layout explicitly.
 
 ### Import the bundled YAML (recommended)
 
@@ -93,23 +99,44 @@ The repo includes a web-UI import file: [assets/zabbix/zabbix_bitrix24_mediatype
 3. In import rules, enable **Create new**; when updating an existing media type, also enable **Update existing**.
 4. Click **Import**.
 
-Then assign this media type to a **Zabbix user** (User profile → Media; the `Send to` value is just a marker, the script does not read it) and configure an **Action** for that user — the action's subject/message templates is what actually ends up in `{ALERT.SUBJECT}` / `{ALERT.MESSAGE}`.
+Then assign this media type to a **Zabbix user** (User profile → **Media**): set **Send to** to the target `dialog_id` (unless you rely on default `BITRIX_DIALOG_ID` in env). Configure an **Action** for that user — the action's subject/message templates are what end up in `{ALERT.SUBJECT}` / `{ALERT.MESSAGE}`.
+
+Optional **EVENT.\*** parameters in the YAML are expanded by Zabbix for tracing in syslog; to also append them to the chat text, set `BITRIX_APPEND_EVENT_METADATA=1` in env (see [bitrix_alerts.env.example](bitrix_alerts.env.example)).
+
+### Migration from 2-parameter media type
+
+1. Import the new [zabbix_bitrix24_mediatype.yaml](assets/zabbix/zabbix_bitrix24_mediatype.yaml) (or edit the existing Script media type in place).
+2. For each user **Media** row using this type, set **Send to** to the correct `dialog_id` (or keep it empty if `BITRIX_DIALOG_ID` in env is the intended single route).
+3. **Test** delivery from **Media types** → **Test** (or trigger a non-production alert).
 
 ### Manual setup
 
 If import is not an option:
 
-**Create media type**:
+**Create media type** (recommended parameter order):
 
 - **Type**: `Script`
 - **Script name**: `bitrix_alerts.sh` (must match the file in `alertscripts`)
 - **Script parameters** (order matters):
-  1. `{ALERT.SUBJECT}`
-  2. `{ALERT.MESSAGE}`
+  1. `{ALERT.SENDTO}`
+  2. `{ALERT.SUBJECT}`
+  3. `{ALERT.MESSAGE}`
+  4. `{EVENT.SOURCE}` (optional; for syslog / optional footer)
+  5. `{EVENT.VALUE}`
+  6. `{EVENT.SEVERITY}`
+
+**Legacy** (still supported; requires `BITRIX_DIALOG_ID` in env):
+
+1. `{ALERT.SUBJECT}`
+2. `{ALERT.MESSAGE}`
 
 Then assign the media type to a user and configure the action as above.
 
 The script formats the message as bold subject + body for Bitrix24 chat.
+
+### Optional env tuning (production)
+
+See [bitrix_alerts.env.example](bitrix_alerts.env.example): `BITRIX_APPEND_EVENT_METADATA`, `BITRIX_STRICT_DIALOG_ID`, `BITRIX_MESSAGE_MAX_LEN`, `BITRIX_CURL_MAX_TIME`, `BITRIX_CURL_RETRIES`, `BITRIX_CURL_RETRY_DELAY`.
 
 ## Message formatting (BBCode)
 
@@ -120,7 +147,7 @@ This script builds the text as:
 - `{ALERT.SUBJECT}` wrapped in `[B]…[/B]`;
 - a newline, then `{ALERT.MESSAGE}`.
 
-You may add other supported tags in Zabbix action templates (for example `[I]…[/I]`, `[URL=https://example.com]label[/URL]`, `[BR]` or plain `\n`). Tag casing in docs may vary (`[b]` vs `[B]`); prefer the official list—random BBCode from the web may be ignored or stripped. API message length limit is **20 000** characters (Bitrix24 truncates with ellipsis).
+You may add other supported tags in Zabbix action templates (for example `[I]…[/I]`, `[URL=https://example.com]label[/URL]`, `[BR]` or plain `\n`). Tag casing in docs may vary (`[b]` vs `[B]`); prefer the official list—random BBCode from the web may be ignored or stripped. API message length limit is **20 000** characters (Bitrix24 truncates with ellipsis). The script truncates to `BITRIX_MESSAGE_MAX_LEN` (default 20000) before send and logs a syslog warning if truncated.
 
 ### UTF-8 and emojis
 
@@ -178,7 +205,8 @@ Original problem ID: {EVENT.ID}
 
 - **Syslog**: `journalctl -t zabbix-bitrix -f` (on systemd) or check `/var/log/syslog` for `zabbix-bitrix`.
 - **Local files** (if writable): `bitrix_problem.log` and `bitrix_response.log` under `LOG_DIR`.
-- **Exit codes**: `2` — missing config or `jq`/`curl`; `1` — Bitrix24/curl HTTP or network failure (Zabbix should show delivery as failed).
+- **Exit codes**: `2` — missing config, missing `jq`/`curl`, invalid invocation (e.g. wrong argument count), empty subject+message, missing `dialog_id`, or invalid `dialog_id` when `BITRIX_STRICT_DIALOG_ID=1`; `1` — Bitrix24/curl HTTP or network failure (Zabbix should show delivery as failed).
+- **Default route vs Send to**: if delivery fails with “dialog_id is empty”, set user **Send to** or `BITRIX_DIALOG_ID` in env.
 - **Optional env path**: set `BITRIX_ALERTS_ENV_FILE` before running to load a different env file.
 - **Error `insufficient_scope` / method denied**: the webhook was created without the `imbot` scope or without methods `imbot.v2.Bot.register` / `imbot.v2.Chat.Message.send` — recreate the webhook with the right scopes/methods.
 - **Error `BOT_TOKEN_NOT_SPECIFIED`**: `BITRIX_BOT_TOKEN` is missing from env — fix the env file.
