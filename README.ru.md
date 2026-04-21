@@ -4,7 +4,7 @@
 
 <p align="center">
   <img src="assets/logos/zabbix.png" alt="Zabbix" height="56" />
-  <br />
+  <img src="assets/logos/arrow-right.svg" alt="→" height="56" />
   <img src="assets/logos/bitrix24-ru.png" alt="Bitrix24" height="56" />
 </p>
 
