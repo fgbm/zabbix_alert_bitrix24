@@ -1,0 +1,18 @@
+zabbix_export:
+  version: '6.0'
+  date: '2026-04-21T00:00:00Z'
+  media_types:
+    - name: Bitrix24 (chat bot)
+      type: SCRIPT
+      script_name: bitrix_alerts.sh
+      parameters:
+        - '{ALERT.SUBJECT}'
+        - '{ALERT.MESSAGE}'
+      max_sessions: '1'
+      attempts: '3'
+      attempt_interval: 10s
+      description: |
+        Bitrix24 chat-bot media type.
+        Calls bitrix_alerts.sh from Zabbix alertscripts directory.
+        Configure /etc/zabbix/bitrix_alerts.env before use.
+        See: https://github.com/fgbm/zabbix_alert_bitrix24

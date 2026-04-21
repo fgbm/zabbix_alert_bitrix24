@@ -314,6 +314,7 @@ main() {
   echo "  Logs:    $LOG_DIR/bitrix_*.log" >/dev/tty
   echo "  Logrotate: $LOGROTATE_DEST" >/dev/tty
   echo "  Syslog:  journalctl -t zabbix-bitrix -f" >/dev/tty
+  echo "  Media type YAML (Zabbix UI → Media types → Import): ${RAW_BASE}/assets/zabbix/zabbix_bitrix24_mediatype.yaml" >/dev/tty
   echo "" >/dev/tty
   echo "Test send (from server, as user zabbix or via Zabbix media):" >/dev/tty
   echo "  sudo -u $zuser BITRIX_ALERTS_ENV_FILE=$ENV_PATH $SCRIPT_DEST \"Test subject\" \"Test body\"" >/dev/tty

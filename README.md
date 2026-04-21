@@ -84,7 +84,22 @@ Set `**ZABBIX_BITRIX_INSTALL_RAW_BASE**` to use a different raw URL prefix (fork
 
 In Zabbix you don't add the script directly — you add a **media type** of kind **Script** that invokes `bitrix_alerts.sh` from the `alertscripts` directory.
 
-**Administration → Media types → Create media type**:
+### Import the bundled YAML (recommended)
+
+The repo includes a web-UI import file: [assets/zabbix/zabbix_bitrix24_mediatype.yaml](assets/zabbix/zabbix_bitrix24_mediatype.yaml) (`version: '6.0'` in the export; suitable for Zabbix 6.0 / 6.4 / 7.x).
+
+1. Open **Media types**: in Zabbix 7.x — **Alerts** → **Media types**; in Zabbix 6.0 — **Administration** → **Media types**.
+2. Click **Import**, select `zabbix_bitrix24_mediatype.yaml` (from the repo or a GitHub raw URL).
+3. In import rules, enable **Create new**; when updating an existing media type, also enable **Update existing**.
+4. Click **Import**.
+
+Then assign this media type to a **Zabbix user** (User profile → Media; the `Send to` value is just a marker, the script does not read it) and configure an **Action** for that user — the action's subject/message templates is what actually ends up in `{ALERT.SUBJECT}` / `{ALERT.MESSAGE}`.
+
+### Manual setup
+
+If import is not an option:
+
+**Create media type**:
 
 - **Type**: `Script`
 - **Script name**: `bitrix_alerts.sh` (must match the file in `alertscripts`)
@@ -92,7 +107,7 @@ In Zabbix you don't add the script directly — you add a **media type** of kind
   1. `{ALERT.SUBJECT}`
   2. `{ALERT.MESSAGE}`
 
-Then assign this media type to a **Zabbix user** (User profile → Media; the `Send to` value is just a marker, the script does not read it) and configure an **Action** for that user — the action's subject/message templates is what actually ends up in `{ALERT.SUBJECT}` / `{ALERT.MESSAGE}`.
+Then assign the media type to a user and configure the action as above.
 
 The script formats the message as bold subject + body for Bitrix24 chat.
 
