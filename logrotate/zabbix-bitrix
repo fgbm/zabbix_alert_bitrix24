@@ -1,0 +1,18 @@
+# Zabbix → Bitrix24 alert script logs (bitrix_alerts.sh).
+# Installed to /etc/logrotate.d/ by install.sh; LOG_DIR may be customized at install time.
+
+/var/log/zabbix/bitrix_problem.log
+/var/log/zabbix/bitrix_response.log
+{
+    weekly
+    rotate 12
+    compress
+    delaycompress
+    missingok
+    notifempty
+    copytruncate
+    create 0640 zabbix zabbix
+    su root root
+    dateext
+    dateformat -%Y%m%d
+}
